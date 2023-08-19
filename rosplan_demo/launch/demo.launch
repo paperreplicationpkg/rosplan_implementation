@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Gazebo configuration -->
+    <env name="GAZEBO_MODEL_PATH" value="$(find fetch_gazebo)/models:$(optenv GAZEBO_MODEL_PATH)" />
+
+    <arg name="robot" default="fetch"/>
+    <arg name="debug" default="false"/>
+    <arg name="gui" default="true"/>
+    <arg name="headless" default="false"/>
+
+    <!-- Start Gazebo with a blank world -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="debug" value="$(arg debug)" />
+        <arg name="gui" value="$(arg gui)" />
+        <arg name="paused" value="false"/>
+        <arg name="use_sim_time" value="true"/>
+        <arg name="headless" value="$(arg headless)"/>
+        <arg name="world_name" value="$(find fetch_gazebo)/worlds/test_zone.sdf"/>
+    </include>
+
+    <!-- Oh, you wanted a robot? -->
+    <include file="$(find fetch_gazebo)/launch/include/$(arg robot).launch.xml" />
+
+    <include file="$(find fetch_navigation)/launch/fetch_nav.launch">
+        <arg name="map_file" value="$(find fetch_gazebo_demo)/maps/test_zone.yaml" />
+    </include>
+
+    <!-- Start MoveIt -->
+    <include file="$(find fetch_moveit_config)/launch/move_group.launch" >
+        <arg name="info" value="true"/><!-- publish grasp markers -->
+    </include>
+
+
+    <!-- Start Perception -->
+    <node name="basic_grasping_perception" pkg="simple_grasping" type="basic_grasping_perception" >
+        <rosparam command="load" file="$(find fetch_gazebo_demo)/config/simple_grasping.yaml" />
+    </node>
+
+
+    <!-- roadmap (random waypoint generation) -->
+    <include file="$(find rosplan_interface_mapping)/launch/rosplan_roadmap_server.launch" />
+
+    <!-- ROSPlan -->
+    <include file="$(find rosplan_planning_system)/launch/interfaced_planning_system.launch">
+        <arg name="domain_path" value="$(find rosplan_demo)/common/domain_demo.pddl" />
+        <!-- load a particular initial state into KB at startup (optional) -->
+        <!-- we leave it empty because in this demo we use a bash script to upload information to KB, not a pddl problem -->
+        <arg name="problem_path" value="$(find rosplan_demo)/common/problem_demo.pddl" />
+        <!-- automatically generated pddl problem will be created here -->
+        <arg name="autom_gen_problem_path" value="$(find rosplan_demo)/common/problem.pddl" />
+        <!-- planner will produce output plan and write to this location -->
+        <arg name="data_path" value="$(find rosplan_demo)/common/" />
+    </include>
+
+	<include file="$(find rosplan_demo)/launch/action.launch" >
+		<arg name="pddl_action_name" value="move" />
+	</include>
+
+	<include file="$(find rosplan_demo)/launch/action.launch" >
+		<arg name="pddl_action_name" value="pick" />
+	</include>
+
+    <include file="$(find rosplan_demo)/launch/action.launch" >
+		<arg name="pddl_action_name" value="transport" />
+	</include>
+
+    <include file="$(find rosplan_demo)/launch/action.launch" >
+		<arg name="pddl_action_name" value="place" />
+	</include>
+
+    <!-- visualisation of robot sensor data -->
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rosplan_demo)/config/fetch.rviz" />
+
+</launch>
